@@ -1,35 +1,64 @@
-const express = require('express');
-const cors = require('cors');
-const ytdl = require('ytdl-core');
-const app = express();
-const PORT = process.env.PORT || 4000;
+const puppeteer = require("puppeteer");
+function avd(url) {
+    return new Promise(async (resolve, reject) => {
+        let browser;
+        try {
+            const URL = "https://en.savefrom.net/65/";
+            browser = await puppeteer.launch({
+                args: ["--disable-setuid-sandbox", "--disable-notifications"],
+                ignoreHTTPSErrors: true,
+            });
+            const page = await browser.newPage();
+            await page.goto(URL);
+            await page.type("#sf_url", url, { delay: 0 });
+            await page.click("#sf_submit");
+            await page.waitForSelector(".media-result");
 
-app.use(cors());
+            const result = await page.evaluate(() => {
+                const thub = document.querySelector(".media-result .clip img")
+                    ? document.querySelector(".media-result .clip img").src
+                    : "https://res.cloudinary.com/alasim/image/upload/v1638853249/hosting%20content/jk-placeholder-image_lj3awz.jpg";
+                const info = document.querySelector(".info-box");
+                const title = info.querySelector(".title")
+                    ? info.querySelector(".title").innerText
+                    : "No title";
+                const duration = info.querySelector(".duration")
+                    ? info.querySelector(".duration").innerText
+                    : "";
+                const link_group = [...info.querySelectorAll(".link-group a")];
 
-app.listen(PORT, () => {
-    console.log(`Server Works);
-});
-
-app.get('/downloadmp4', async (req, res, next) => {
-    try {
-        let url = req.query.url;
-        if (!ytdl.validateURL(url)) {
-            return res.sendStatus(400);
+                let links = link_group.map((link) => {
+                    const video_format = link.title;
+                    const href = link.href;
+                    const text = link.innerText;
+                    return { video_format, href, text };
+                });
+                if (links.length == 0) {
+                    const link = info.querySelector(".link-download");
+                    const video_format = "";
+                    const href = link.href;
+                    const text = link.innerText.replace("Download", "").trim();
+                    links.push({ video_format, href, text });
+                }
+                return {
+                    info: { title, thub, duration },
+                    links,
+                };
+            });
+            browser.close();
+            resolve(result);
+        } catch (error) {
+            browser.close();
+            reject(error);
         }
-        let title = 'video';
+    });
+}
 
-        await ytdl.getBasicInfo(url, {
-            format: 'mp4'
-        }, (err, info) => {
-            title = info.player_response.videoDetails.title.replace(/[^\x00-\x7F]/g, "");
-        });
-
-        res.header('Content-Disposition', `attachment; filename="${title}.mp4"`);
-        ytdl(url, {
-            format: 'mp4',
-        }).pipe(res);
-
-    } catch (err) {
-        console.error(err);
-    }
+const info_with_option_urls = avd(
+    "https://www.youtube.com/watch?v=-DEPDfN8ZYk"
+).then((result) => {
+    console.log(result);
+    return result;
 });
+
+
