@@ -1,11 +1,16 @@
 const puppeteer = require("puppeteer");
+const chrome = require("chrome-aws-lambda");
+let chrome = {};
 function avd(url) {
     return new Promise(async (resolve, reject) => {
         let browser;
         try {
             const URL = "https://en.savefrom.net/65/";
             browser = await puppeteer.launch({
-                args: ["--disable-setuid-sandbox", "--disable-notifications"],
+                args: [...chrome.args, "--hide-scrollbars", "--disable-web-security"],
+                defaultViewport: chrome.defaultViewport,
+                executablePath: await chrome.executablePath,
+                headless: true,
                 ignoreHTTPSErrors: true,
             });
             const page = await browser.newPage();
